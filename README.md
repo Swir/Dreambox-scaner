@@ -1,4 +1,10 @@
+# DREAM BOX SCANNER
 
-For all my programs to work, you need to install libraries requirements
+program for scanning dreambox and creating TV lists, possibility of adding your
+own list and generating it
 
-you can do it quickly with a command pip install -r requirements.txt
+## Image
+![dreambox](https://images92.fotosik.pl/706/b06cd1074639b59dgen.png)
+
+
+
