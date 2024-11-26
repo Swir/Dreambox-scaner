@@ -149,10 +149,8 @@ def generate_random_ips_from_country(country, count):
         cidr = random.choice(ip_ranges)
         network = ipaddress.ip_network(cidr, strict=False)
         # Losowanie hosta w sieci
-        random_ip = str(network[random.randint(0, network.num_addresses - 1)])
-        # Pomijanie adresów sieci i rozgłoszeniowych
-        if random_ip not in (str(network.network_address), str(network.broadcast_address)):
-            sampled_ips.add(random_ip)
+        random_ip = str(network[random.randint(1, network.num_addresses - 2)])
+        sampled_ips.add(random_ip)
     return list(sampled_ips)
 
 def generate_ip_range(start_ip, end_ip):
@@ -203,17 +201,16 @@ def get_service_name(port, protocol='TCP'):
     """
     try:
         # Specjalna obsługa dla znanych portów
-        if port == 8001 and protocol.upper() == 'TCP':
-            return "Dreambox"
-        elif port == 8888 and protocol.upper() == 'TCP':
-            return "NBox"
-        elif port == 8080 and protocol.upper() == 'TCP':
-            return "Kodi"
-        elif port == 65001 and protocol.upper() == 'TCP':
-            return "HDHomeRun"
-        return socket.getservbyport(port, protocol.lower())
+        known_services = {
+            8001: "Dreambox",
+            8002: "Dreambox",
+            8888: "NBox",
+            8080: "Kodi",
+            65001: "HDHomeRun"
+        }
+        return known_services.get(port, socket.getservbyport(port, protocol.lower()))
     except:
-        return "Unknown"
+        return "Nieznany"
 
 # ---------------------------
 # Definicje Funkcji Detekcji
@@ -536,20 +533,14 @@ def download_playlist_from_tvheadend(ip, port, username=None, password=None, use
         logging.error(f"Błąd podczas pobierania playlisty z TVHeadend na {ip}: {e}")
         return False
 
-def create_playlist(ip, port, template_file='playlist_template.m3u', output_dir='HITS'):
+def create_playlist(ip, port, template_content, output_dir='HITS'):
     """
     Tworzy playlistę na podstawie szablonu, zastępując placeholder IP i port.
     """
-    if not os.path.isfile(template_file):
-        logging.error(f"Szablon playlisty {template_file} nie istnieje.")
-        console.print(f"[red]Szablon playlisty {template_file} nie istnieje.[/red]")
-        return False
     try:
-        with open(template_file, 'r', encoding='utf-8') as f:
-            template_content = f.read()
         if "xxx.xxx.xxx.xxx" not in template_content or "PORT_PLACEHOLDER" not in template_content:
             console.print(f"[red]Szablon playlisty musi zawierać placeholdery 'xxx.xxx.xxx.xxx' i 'PORT_PLACEHOLDER'.[/red]")
-            logging.error(f"Szablon playlisty {template_file} nie zawiera wymaganych placeholderów.")
+            logging.error("Szablon playlisty nie zawiera wymaganych placeholderów.")
             return False
         playlist_content = template_content.replace("xxx.xxx.xxx.xxx", ip).replace("PORT_PLACEHOLDER", str(port))
         os.makedirs(output_dir, exist_ok=True)
@@ -619,7 +610,7 @@ class Dreambox(Device):
 
     def scan(self):
         open_ports = []
-        device_type = "Unknown"
+        device_type = "Nieznany"
         detected_ports = []
         for port in self.ports:
             if port_is_open(self.ip, port, self.timeout):
@@ -645,7 +636,7 @@ class NBox(Device):
 
     def scan(self):
         open_ports = []
-        device_type = "Unknown"
+        device_type = "Nieznany"
         detected_ports = []
         for port in self.ports:
             if port_is_open(self.ip, port, self.timeout):
@@ -671,14 +662,16 @@ class VuPlus(Device):
 
     def scan(self):
         open_ports = []
-        device_type = "Unknown"
+        device_type = "Nieznany"
         detected_ports = []
         for port in self.ports:
             if port_is_open(self.ip, port, self.timeout):
                 service = get_service_name(port)
                 open_ports.append((port, service))
-                # Poprawiono warunek sprawdzający serwis
-                if service == "VuPlus" and detect_vuplus(self.ip, port, self.timeout):
+                if service == "HDHomeRun" and detect_hdhr(self.ip, port, self.timeout):
+                    device_type = "HDHomeRun"
+                    detected_ports.append(port)
+                elif service == "VuPlus" and detect_vuplus(self.ip, port, self.timeout):
                     device_type = "VuPlus"
                     detected_ports.append(port)
         return open_ports, device_type, detected_ports
@@ -698,7 +691,7 @@ class KodiDevice(Device):
 
     def scan(self):
         open_ports = []
-        device_type = "Unknown"
+        device_type = "Nieznany"
         detected_ports = []
         for port in self.ports:
             if port_is_open(self.ip, port, self.timeout):
@@ -721,7 +714,7 @@ class TVHeadend(Device):
 
     def scan(self):
         open_ports = []
-        device_type = "Unknown"
+        device_type = "Nieznany"
         detected_ports = []
         for port in self.ports:
             if port_is_open(self.ip, port, self.timeout):
@@ -749,7 +742,7 @@ class TVHeadend(Device):
 # Funkcja Skanowania IP
 # ---------------------------
 
-def scan_ip(ip, device_classes, ports, timeout, session):
+def scan_ip(ip, device_classes, ports, timeout, session, generate_playlist, template_content):
     """
     Skanuje określone porty na danym adresie IP.
     Tworzy playlistę z szablonu i pobiera playlistę z wykrytego urządzenia.
@@ -758,16 +751,30 @@ def scan_ip(ip, device_classes, ports, timeout, session):
     for DeviceClass in device_classes:
         device = DeviceClass(ip, ports, timeout, session, logger)
         open_ports, device_type, detected_ports = device.scan()
-        if open_ports and device_type != "Unknown":
-            for port in detected_ports:
-                playlist_success = device.get_playlist(port)
-                results.append({
-                    "ip": ip,
-                    "port": port,
-                    "service": next((s for p, s in open_ports if p == port), "Unknown"),
-                    "device": device_type,
-                    "playlist_downloaded": playlist_success
-                })
+        if open_ports:
+            for port, service in open_ports:
+                # Jeśli port odpowiada znanemu urządzeniu
+                if service != "Nieznany":
+                    playlist_success = device.get_playlist(port)
+                    results.append({
+                        "ip": ip,
+                        "port": port,
+                        "service": service,
+                        "device": device_type if port in detected_ports else "Nieznany",
+                        "playlist_downloaded": playlist_success
+                    })
+                else:
+                    # Port otwarty, ale usługa nieznana
+                    results.append({
+                        "ip": ip,
+                        "port": port,
+                        "service": service,
+                        "device": "Nieznany",
+                        "playlist_downloaded": False
+                    })
+                # Generowanie playlisty niezależnie od typu urządzenia, jeśli opcja jest włączona
+                if generate_playlist:
+                    create_playlist(ip, port, template_content)
     return results
 
 # ---------------------------
@@ -789,7 +796,7 @@ def save_results(results, output_format):
                     ip = result['ip']
                     port = result['port']
                     service = result['service']
-                    device = result.get('device', 'Unknown')
+                    device = result.get('device', 'Nieznany')
                     playlist_status = "Pobrano" if result.get('playlist_downloaded', False) else "Nie pobrano"
                     f.write(f"IP: {ip}\nPort: {port} ({service})\nUrządzenie: {device}\nPlaylista pobrana: {playlist_status}\n\n")
         elif output_format == 'csv':
@@ -800,7 +807,7 @@ def save_results(results, output_format):
                     ip = result['ip']
                     port = result['port']
                     service = result['service']
-                    device = result.get('device', 'Unknown')
+                    device = result.get('device', 'Nieznany')
                     playlist_status = "Pobrano" if result.get('playlist_downloaded', False) else "Nie pobrano"
                     writer.writerow([ip, port, service, device, playlist_status])
         elif output_format == 'json':
@@ -815,42 +822,6 @@ def save_results(results, output_format):
     except IOError as e:
         console.print(f"[red]Błąd przy zapisywaniu wyników: {e}[/red]")
         logging.error(f"Błąd przy zapisywaniu wyników: {e}")
-
-# ---------------------------
-# Funkcja Ładowania Szablonu Playlisty
-# ---------------------------
-
-def load_playlist_template():
-    """
-    Ładuje szablon playlisty. Jeśli nie istnieje, tworzy domyślny szablon.
-    """
-    template_filename = "playlist_template.m3u"
-
-    if not os.path.isfile(template_filename):
-        default_template = (
-            "#EXTM3U\n"
-            "# Playlist wygenerowana automatycznie\n"
-            "# Dodaj poniższe linie, aby odtworzyć usługi\n"
-            "#EXTINF:-1,Service on xxx.xxx.xxx.xxx:PORT_PLACEHOLDER\n"
-            "http://xxx.xxx.xxx.xxx:PORT_PLACEHOLDER/stream\n"
-        )
-        try:
-            with open(template_filename, "w", encoding='utf-8') as file:
-                file.write(default_template)
-            logging.info(f"Utworzono domyślny szablon playlisty: {template_filename}")
-            console.print(f"[yellow]Utworzono domyślny szablon playlisty: {template_filename}[/yellow]")
-        except IOError as e:
-            console.print(f"[red]Nie udało się utworzyć szablonu playlisty: {e}[/red]")
-            logging.error(f"Nie udało się utworzyć szablonu playlisty: {e}")
-            sys.exit(1)
-
-    try:
-        with open(template_filename, "r", encoding='utf-8') as file:
-            return file.read()
-    except IOError as e:
-        console.print(f"[red]Nie udało się odczytać szablonu playlisty: {e}[/red]")
-        logging.error(f"Nie udało się odczytać szablonu playlisty: {e}")
-        sys.exit(1)
 
 # ---------------------------
 # Główna Funkcja Programu
@@ -928,7 +899,7 @@ def main():
                 else:
                     console.print("[red]Nieprawidłowy format adresu IP. Spróbuj ponownie.[/red]")
 
-            # Sprawdzenie, czy zakres IP jest poprawny
+            # Generowanie listy IP
             ip_list_all = generate_ip_range(validated_start_ip, validated_end_ip)
             ip_count_total = len(ip_list_all)
             # Wprowadzanie liczby IP do skanowania
@@ -1160,6 +1131,9 @@ def main():
     task_progress = progress.add_task("Skanowanie...", total=len(selected_ips))
     results = []
 
+    # Załadowanie szablonu playlisty
+    template_content = load_playlist_template()
+
     with progress:
         with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
             # Przekazywanie dodatkowych argumentów do funkcji scan_ip
@@ -1170,30 +1144,37 @@ def main():
                     device_classes,
                     ports,
                     timeout,
-                    session_info
+                    session_info,
+                    generate_playlist_option,
+                    template_content
                 ): ip for ip in selected_ips
             }
             for future in concurrent.futures.as_completed(future_to_ip):
                 ip = future_to_ip[future]
                 try:
                     device_results = future.result()
-                    for result in device_results:
-                        results.append(result)
-                        # Wyświetlanie wyników w tabeli
-                        table = Table(show_header=True, header_style="bold magenta")
-                        table.add_column("IP", style="dim", width=15)
-                        table.add_column("Port", style="dim", width=10)
-                        table.add_column("Usługa", justify="left")
-                        table.add_column("Urządzenie", style="bold blue")
-                        table.add_column("Playlista Pobrania", style="bold green")
+                    if device_results:
+                        for result in device_results:
+                            results.append(result)
+                            # Wyświetlanie wyników w tabeli
+                            table = Table(show_header=True, header_style="bold magenta")
+                            table.add_column("IP", style="dim", width=15)
+                            table.add_column("Port", style="dim", width=10)
+                            table.add_column("Usługa", justify="left")
+                            table.add_column("Urządzenie", style="bold blue")
+                            table.add_column("Playlista Pobrania", style="bold green")
 
-                        port_info = result["port"]
-                        service = result["service"]
-                        device = result["device"]
-                        playlist_status = "[green]Pobrano[/green]" if result["playlist_downloaded"] else "[red]Nie pobrano[/red]"
+                            port_info = result["port"]
+                            service = result["service"]
+                            device = result["device"]
+                            playlist_status = "[green]Pobrano[/green]" if result["playlist_downloaded"] else "[red]Nie pobrano[/red]"
 
-                        table.add_row(ip, str(port_info), service, device, playlist_status)
-                        console.print(table)
+                            table.add_row(ip, str(port_info), service, device, playlist_status)
+                            console.print(table)
+                    else:
+                        # Brak otwartych portów dla tego IP
+                        console.print(f"[yellow]Brak otwartych portów na IP: {ip}.[/yellow]")
+                        logging.info(f"Brak otwartych portów na IP: {ip}.")
                 except Exception as e:
                     console.print(f"[red]Błąd przy skanowaniu {ip}: {e}[/red]")
                     logging.error(f"Błąd przy skanowaniu {ip}: {e}")
