@@ -183,7 +183,16 @@ def port_is_open(ip, port, timeout, protocol='TCP'):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(timeout / 1000)
                 result = sock.connect_ex((ip, port))
-                return result == 0
+                if result == 0:
+                    logging.debug(f"Port {port} na {ip} jest otwarty.")
+                    return True
+                else:
+                    logging.debug(f"Port {port} na {ip} jest zamknięty.")
+                    return False
+        else:
+            # Implementacja sprawdzania UDP, jeśli potrzebne
+            logging.debug(f"Nieobsługiwany protokół {protocol}.")
+            return False
     except socket.error as e:
         logging.error(f"Błąd przy sprawdzaniu portu {port} na {ip}: {e}")
         return False
@@ -193,7 +202,7 @@ def get_service_name(port, protocol='TCP'):
     Pobiera nazwę usługi działającej na danym porcie.
     """
     try:
-        # Specjalna obsługa dla portów 8001 (Dreambox), 8888 (NBox), 8080 (Kodi), 65001 (HDHomeRun)
+        # Specjalna obsługa dla znanych portów
         if port == 8001 and protocol.upper() == 'TCP':
             return "Dreambox"
         elif port == 8888 and protocol.upper() == 'TCP':
@@ -222,12 +231,13 @@ def detect_dreambox(ip, port, timeout):
                 # Wysyłanie zapytania HTTP GET do portu
                 request = f"GET / HTTP/1.1\r\nHost: {ip}\r\n\r\n"
                 sock.sendall(request.encode())
-                response = sock.recv(1024).decode(errors='ignore')
+                response = sock.recv(4096).decode(errors='ignore')
+                logging.debug(f"Odpowiedź od Dreambox {ip}:{port}:\n{response}")
                 if "Dreambox" in response or "dreambox" in response:
-                    logging.debug(f"Dreambox potwierdzony na {ip}.")
+                    logging.debug(f"Dreambox potwierdzony na {ip}:{port}.")
                     return True
     except socket.error as e:
-        logging.error(f"Błąd przy sprawdzaniu Dreambox na {ip}: {e}")
+        logging.error(f"Błąd przy sprawdzaniu Dreambox na {ip}:{port} - {e}")
     return False
 
 def detect_nbox(ip, port, timeout):
@@ -242,12 +252,13 @@ def detect_nbox(ip, port, timeout):
                 # Wysyłanie zapytania HTTP GET do portu
                 request = f"GET / HTTP/1.1\r\nHost: {ip}\r\n\r\n"
                 sock.sendall(request.encode())
-                response = sock.recv(1024).decode(errors='ignore')
+                response = sock.recv(4096).decode(errors='ignore')
+                logging.debug(f"Odpowiedź od NBox {ip}:{port}:\n{response}")
                 if "NBox" in response or "nbox" in response:
-                    logging.debug(f"NBox potwierdzony na {ip}.")
+                    logging.debug(f"NBox potwierdzony na {ip}:{port}.")
                     return True
     except socket.error as e:
-        logging.error(f"Błąd przy sprawdzaniu NBox na {ip}: {e}")
+        logging.error(f"Błąd przy sprawdzaniu NBox na {ip}:{port} - {e}")
     return False
 
 def detect_vuplus(ip, port, timeout):
@@ -262,12 +273,13 @@ def detect_vuplus(ip, port, timeout):
                 # Wysyłanie zapytania HTTP GET do portu
                 request = f"GET / HTTP/1.1\r\nHost: {ip}\r\n\r\n"
                 sock.sendall(request.encode())
-                response = sock.recv(1024).decode(errors='ignore')
+                response = sock.recv(4096).decode(errors='ignore')
+                logging.debug(f"Odpowiedź od VuPlus {ip}:{port}:\n{response}")
                 if "Vu+" in response or "vuplus" in response:
-                    logging.debug(f"VuPlus potwierdzony na {ip}.")
+                    logging.debug(f"VuPlus potwierdzony na {ip}:{port}.")
                     return True
     except socket.error as e:
-        logging.error(f"Błąd przy sprawdzaniu VuPlus na {ip}: {e}")
+        logging.error(f"Błąd przy sprawdzaniu VuPlus na {ip}:{port} - {e}")
     return False
 
 def detect_kodi(ip, port, timeout):
@@ -282,12 +294,13 @@ def detect_kodi(ip, port, timeout):
                 # Wysyłanie zapytania HTTP GET do portu
                 request = f"GET /jsonrpc HTTP/1.1\r\nHost: {ip}\r\n\r\n"
                 sock.sendall(request.encode())
-                response = sock.recv(1024).decode(errors='ignore')
+                response = sock.recv(4096).decode(errors='ignore')
+                logging.debug(f"Odpowiedź od Kodi {ip}:{port}:\n{response}")
                 if "kodi" in response.lower():
-                    logging.debug(f"Kodi potwierdzony na {ip}.")
+                    logging.debug(f"Kodi potwierdzony na {ip}:{port}.")
                     return True
     except socket.error as e:
-        logging.error(f"Błąd przy sprawdzaniu Kodi na {ip}: {e}")
+        logging.error(f"Błąd przy sprawdzaniu Kodi na {ip}:{port} - {e}")
     return False
 
 def detect_tvheadend(ip, port, timeout):
@@ -302,12 +315,13 @@ def detect_tvheadend(ip, port, timeout):
                 # Wysyłanie zapytania HTTP GET do portu
                 request = f"GET /api/status HTTP/1.1\r\nHost: {ip}\r\n\r\n"
                 sock.sendall(request.encode())
-                response = sock.recv(1024).decode(errors='ignore')
+                response = sock.recv(4096).decode(errors='ignore')
+                logging.debug(f"Odpowiedź od TVHeadend {ip}:{port}:\n{response}")
                 if "tvheadend" in response.lower():
-                    logging.debug(f"TVHeadend potwierdzony na {ip}.")
+                    logging.debug(f"TVHeadend potwierdzony na {ip}:{port}.")
                     return True
     except socket.error as e:
-        logging.error(f"Błąd przy sprawdzaniu TVHeadend na {ip}: {e}")
+        logging.error(f"Błąd przy sprawdzaniu TVHeadend na {ip}:{port} - {e}")
     return False
 
 def detect_hdhr(ip, port, timeout):
@@ -322,12 +336,13 @@ def detect_hdhr(ip, port, timeout):
                 # Wysyłanie zapytania HTTP GET do portu
                 request = f"GET /discover.json HTTP/1.1\r\nHost: {ip}\r\n\r\n"
                 sock.sendall(request.encode())
-                response = sock.recv(2048).decode(errors='ignore')
+                response = sock.recv(4096).decode(errors='ignore')
+                logging.debug(f"Odpowiedź od HDHomeRun {ip}:{port}:\n{response}")
                 if "hdhomerun" in response.lower():
-                    logging.debug(f"HDHomeRun potwierdzony na {ip}.")
+                    logging.debug(f"HDHomeRun potwierdzony na {ip}:{port}.")
                     return True
     except socket.error as e:
-        logging.error(f"Błąd przy sprawdzaniu HDHomeRun na {ip}: {e}")
+        logging.error(f"Błąd przy sprawdzaniu HDHomeRun na {ip}:{port} - {e}")
     return False
 
 # ---------------------------
@@ -341,7 +356,7 @@ def download_m3u_from_dreambox(ip, port, username=None, password=None, use_https
     """
     protocol = "https" if use_https else "http"
     m3u_url = f"{protocol}://{ip}:{port}/playlist.m3u"  # Dostosuj ścieżkę według potrzeb
-    logging.debug(f"Próbuję pobrać playlistę z URL: {m3u_url}")
+    logging.debug(f"Próbuję pobrać playlistę z Dreambox na URL: {m3u_url}")
 
     try:
         if username and password:
@@ -349,7 +364,7 @@ def download_m3u_from_dreambox(ip, port, username=None, password=None, use_https
             logging.debug(f"Wykorzystano uwierzytelnianie dla {ip}.")
         else:
             response = session.get(m3u_url, timeout=10, verify=False)
-            logging.debug(f"Bez uwierzytelniania próbuję pobrać playlistę z {ip}.")
+            logging.debug(f"Próbuję pobrać playlistę z {ip} bez uwierzytelniania.")
 
         if response.status_code == 200:
             playlist_dir = "Dreambox_Playlists"
@@ -376,7 +391,7 @@ def download_m3u_from_nbox(ip, port, username=None, password=None, use_https=Fal
     """
     protocol = "https" if use_https else "http"
     m3u_url = f"{protocol}://{ip}:{port}/playlist.m3u"  # Dostosuj ścieżkę według potrzeb
-    logging.debug(f"Próbuję pobrać playlistę z URL: {m3u_url}")
+    logging.debug(f"Próbuję pobrać playlistę z NBox na URL: {m3u_url}")
 
     try:
         if username and password:
@@ -384,7 +399,7 @@ def download_m3u_from_nbox(ip, port, username=None, password=None, use_https=Fal
             logging.debug(f"Wykorzystano uwierzytelnianie dla {ip}.")
         else:
             response = session.get(m3u_url, timeout=10, verify=False)
-            logging.debug(f"Bez uwierzytelniania próbuję pobrać playlistę z {ip}.")
+            logging.debug(f"Próbuję pobrać playlistę z {ip} bez uwierzytelniania.")
 
         if response.status_code == 200:
             playlist_dir = "NBox_Playlists"
@@ -411,7 +426,7 @@ def download_m3u_from_vuplus(ip, port, username=None, password=None, use_https=F
     """
     protocol = "https" if use_https else "http"
     m3u_url = f"{protocol}://{ip}:{port}/playlist.m3u"  # Dostosuj ścieżkę według potrzeb
-    logging.debug(f"Próbuję pobrać playlistę z URL: {m3u_url}")
+    logging.debug(f"Próbuję pobrać playlistę z VuPlus na URL: {m3u_url}")
 
     try:
         if username and password:
@@ -419,7 +434,7 @@ def download_m3u_from_vuplus(ip, port, username=None, password=None, use_https=F
             logging.debug(f"Wykorzystano uwierzytelnianie dla {ip}.")
         else:
             response = session.get(m3u_url, timeout=10, verify=False)
-            logging.debug(f"Bez uwierzytelniania próbuję pobrać playlistę z {ip}.")
+            logging.debug(f"Próbuję pobrać playlistę z {ip} bez uwierzytelniania.")
 
         if response.status_code == 200:
             playlist_dir = "VuPlus_Playlists"
@@ -441,7 +456,7 @@ def download_m3u_from_vuplus(ip, port, username=None, password=None, use_https=F
 
 def download_playlist_from_kodi(ip, port, timeout):
     """
-    Pobiera playlistę z Kodi poprzez API na określonym porcie.
+    Pobiera playlistę z serwera Kodi poprzez API na określonym porcie.
     Zwraca True jeśli pobranie się powiodło, False w przeciwnym razie.
     """
     try:
@@ -454,12 +469,13 @@ def download_playlist_from_kodi(ip, port, timeout):
             },
             "id": 1
         }
-        response = requests.post(api_url, json=payload, timeout=timeout/1000)
+        logging.debug(f"Próbuję pobrać playlistę z Kodi na URL: {api_url}")
+        response = requests.post(api_url, json=payload, timeout=10)
         if response.status_code == 200:
             data = response.json()
             playlist = data.get("result", {}).get("items", [])
             if not playlist:
-                logging.warning(f"Brak playlisty do pobrania z Kodi na {ip}.")
+                logging.warning(f"Brak playlisty do pobrania z Kodi na {ip}:{port}.")
                 return False
             playlist_dir = "Kodi_Playlists"
             os.makedirs(playlist_dir, exist_ok=True)
@@ -488,10 +504,11 @@ def download_playlist_from_tvheadend(ip, port, username=None, password=None, use
     Zwraca True jeśli pobranie się powiodło, False w przeciwnym razie.
     """
     protocol = "https" if use_https else "http"
-    # Przykładowy endpoint API TVHeadend, może wymagać dostosowania
-    # Upewnij się, że URL jest poprawny dla Twojej konfiguracji TVHeadend
-    m3u_url = f"{protocol}://{ip}:{port}/api/stream/channel/{username}/playlist.m3u" if username else f"{protocol}://{ip}:{port}/api/stream/playlist.m3u"
-    logging.debug(f"Próbuję pobrać playlistę z URL: {m3u_url}")
+    if username:
+        m3u_url = f"{protocol}://{ip}:{port}/api/stream/channel/{username}/playlist.m3u"  # Dostosuj ścieżkę według potrzeb
+    else:
+        m3u_url = f"{protocol}://{ip}:{port}/api/stream/playlist.m3u"  # Dostosuj ścieżkę według potrzeb
+    logging.debug(f"Próbuję pobrać playlistę z TVHeadend na URL: {m3u_url}")
 
     try:
         if username and password:
@@ -499,7 +516,7 @@ def download_playlist_from_tvheadend(ip, port, username=None, password=None, use
             logging.debug(f"Wykorzystano uwierzytelnianie dla {ip}.")
         else:
             response = session.get(m3u_url, timeout=10, verify=False)
-            logging.debug(f"Bez uwierzytelniania próbuję pobrać playlistę z {ip}.")
+            logging.debug(f"Próbuję pobrać playlistę z {ip} bez uwierzytelniania.")
 
         if response.status_code == 200:
             playlist_dir = "TVHeadend_Playlists"
@@ -518,6 +535,66 @@ def download_playlist_from_tvheadend(ip, port, username=None, password=None, use
         console.print(f"[red]Błąd podczas pobierania playlisty z TVHeadend na {ip}: {e}[/red]")
         logging.error(f"Błąd podczas pobierania playlisty z TVHeadend na {ip}: {e}")
         return False
+
+def create_playlist(ip, port, template_file='playlist_template.m3u', output_dir='HITS'):
+    """
+    Tworzy playlistę na podstawie szablonu, zastępując placeholder IP i port.
+    """
+    if not os.path.isfile(template_file):
+        logging.error(f"Szablon playlisty {template_file} nie istnieje.")
+        console.print(f"[red]Szablon playlisty {template_file} nie istnieje.[/red]")
+        return False
+    try:
+        with open(template_file, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        if "xxx.xxx.xxx.xxx" not in template_content or "PORT_PLACEHOLDER" not in template_content:
+            console.print(f"[red]Szablon playlisty musi zawierać placeholdery 'xxx.xxx.xxx.xxx' i 'PORT_PLACEHOLDER'.[/red]")
+            logging.error(f"Szablon playlisty {template_file} nie zawiera wymaganych placeholderów.")
+            return False
+        playlist_content = template_content.replace("xxx.xxx.xxx.xxx", ip).replace("PORT_PLACEHOLDER", str(port))
+        os.makedirs(output_dir, exist_ok=True)
+        playlist_filename = os.path.join(output_dir, f"playlist_{ip.replace('.', '_')}_{port}.m3u")
+        with open(playlist_filename, 'w', encoding='utf-8') as f:
+            f.write(playlist_content)
+        console.print(f"[green]Playlista utworzona: {playlist_filename}[/green]")
+        logging.info(f"Playlista utworzona dla {ip} na porcie {port}: {playlist_filename}")
+        return True
+    except Exception as e:
+        console.print(f"[red]Błąd przy tworzeniu playlisty dla {ip} na porcie {port}: {e}[/red]")
+        logging.error(f"Błąd przy tworzeniu playlisty dla {ip} na porcie {port}: {e}")
+        return False
+
+def load_playlist_template():
+    """
+    Ładuje szablon playlisty. Jeśli nie istnieje, tworzy domyślny szablon.
+    """
+    template_filename = "playlist_template.m3u"
+
+    if not os.path.isfile(template_filename):
+        default_template = (
+            "#EXTM3U\n"
+            "# Playlist wygenerowana automatycznie\n"
+            "# Dodaj poniższe linie, aby odtworzyć usługi\n"
+            "#EXTINF:-1,Service on xxx.xxx.xxx.xxx:PORT_PLACEHOLDER\n"
+            "http://xxx.xxx.xxx.xxx:PORT_PLACEHOLDER/stream\n"
+        )
+        try:
+            with open(template_filename, "w", encoding='utf-8') as file:
+                file.write(default_template)
+            logging.info(f"Utworzono domyślny szablon playlisty: {template_filename}")
+            console.print(f"[yellow]Utworzono domyślny szablon playlisty: {template_filename}[/yellow]")
+        except IOError as e:
+            console.print(f"[red]Nie udało się utworzyć szablonu playlisty: {e}[/red]")
+            logging.error(f"Nie udało się utworzyć szablonu playlisty: {e}")
+            sys.exit(1)
+
+    try:
+        with open(template_filename, "r", encoding='utf-8') as file:
+            return file.read()
+    except IOError as e:
+        console.print(f"[red]Nie udało się odczytać szablonu playlisty: {e}[/red]")
+        logging.error(f"Nie udało się odczytać szablonu playlisty: {e}")
+        sys.exit(1)
 
 # ---------------------------
 # Definicje Klas Urządzeń
@@ -600,7 +677,8 @@ class VuPlus(Device):
             if port_is_open(self.ip, port, self.timeout):
                 service = get_service_name(port)
                 open_ports.append((port, service))
-                if service == "Dreambox" and detect_vuplus(self.ip, port, self.timeout):
+                # Poprawiono warunek sprawdzający serwis
+                if service == "VuPlus" and detect_vuplus(self.ip, port, self.timeout):
                     device_type = "VuPlus"
                     detected_ports.append(port)
         return open_ports, device_type, detected_ports
@@ -668,36 +746,29 @@ class TVHeadend(Device):
         )
 
 # ---------------------------
-# Funkcja Tworzenia Playlisty
+# Funkcja Skanowania IP
 # ---------------------------
 
-def create_playlist(ip, port, template_file='playlist_template.m3u', output_dir='HITS'):
+def scan_ip(ip, device_classes, ports, timeout, session):
     """
-    Tworzy playlistę na podstawie szablonu, zastępując placeholder IP i port.
+    Skanuje określone porty na danym adresie IP.
+    Tworzy playlistę z szablonu i pobiera playlistę z wykrytego urządzenia.
     """
-    if not os.path.isfile(template_file):
-        logging.error(f"Szablon playlisty {template_file} nie istnieje.")
-        console.print(f"[red]Szablon playlisty {template_file} nie istnieje.[/red]")
-        return False
-    try:
-        with open(template_file, 'r', encoding='utf-8') as f:
-            template_content = f.read()
-        if "xxx.xxx.xxx.xxx" not in template_content or "PORT_PLACEHOLDER" not in template_content:
-            console.print(f"[red]Szablon playlisty musi zawierać placeholdery 'xxx.xxx.xxx.xxx' i 'PORT_PLACEHOLDER'.[/red]")
-            logging.error(f"Szablon playlisty {template_file} nie zawiera wymaganych placeholderów.")
-            return False
-        playlist_content = template_content.replace("xxx.xxx.xxx.xxx", ip).replace("PORT_PLACEHOLDER", str(port))
-        os.makedirs(output_dir, exist_ok=True)
-        playlist_filename = os.path.join(output_dir, f"playlist_{ip.replace('.', '_')}_{port}.m3u")
-        with open(playlist_filename, 'w', encoding='utf-8') as f:
-            f.write(playlist_content)
-        console.print(f"[green]Playlista utworzona: {playlist_filename}[/green]")
-        logging.info(f"Playlista utworzona dla {ip} na porcie {port}: {playlist_filename}")
-        return True
-    except Exception as e:
-        console.print(f"[red]Błąd przy tworzeniu playlisty dla {ip} na porcie {port}: {e}[/red]")
-        logging.error(f"Błąd przy tworzeniu playlisty dla {ip} na porcie {port}: {e}")
-        return False
+    results = []
+    for DeviceClass in device_classes:
+        device = DeviceClass(ip, ports, timeout, session, logger)
+        open_ports, device_type, detected_ports = device.scan()
+        if open_ports and device_type != "Unknown":
+            for port in detected_ports:
+                playlist_success = device.get_playlist(port)
+                results.append({
+                    "ip": ip,
+                    "port": port,
+                    "service": next((s for p, s in open_ports if p == port), "Unknown"),
+                    "device": device_type,
+                    "playlist_downloaded": playlist_success
+                })
+    return results
 
 # ---------------------------
 # Funkcja Zapisania Wyników
@@ -780,31 +851,6 @@ def load_playlist_template():
         console.print(f"[red]Nie udało się odczytać szablonu playlisty: {e}[/red]")
         logging.error(f"Nie udało się odczytać szablonu playlisty: {e}")
         sys.exit(1)
-
-# ---------------------------
-# Funkcja Skanowania IP
-# ---------------------------
-
-def scan_ip(ip, device_classes, ports, timeout, session):
-    """
-    Skanuje określone porty na danym adresie IP.
-    Tworzy playlistę z szablonu i pobiera playlistę z wykrytego urządzenia.
-    """
-    results = []
-    for DeviceClass in device_classes:
-        device = DeviceClass(ip, ports, timeout, session, logger)
-        open_ports, device_type, detected_ports = device.scan()
-        if open_ports and device_type != "Unknown":
-            for port in detected_ports:
-                playlist_success = device.get_playlist(port)
-                results.append({
-                    "ip": ip,
-                    "port": port,
-                    "service": next((s for p, s in open_ports if p == port), "Unknown"),
-                    "device": device_type,
-                    "playlist_downloaded": playlist_success
-                })
-    return results
 
 # ---------------------------
 # Główna Funkcja Programu
