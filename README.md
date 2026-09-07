@@ -2,28 +2,41 @@
 
 # 📡 Dreambox Scanner
 
-**Network diagnostics & Dreambox list tooling / Diagnostyka sieci i narzędzia list Dreambox**
+### Dreambox Network Diagnostics & TV List Utility
+
+**Python • Rich CLI • JSON Config • Logging • Authorized Network Use**
 
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
-![CLI](https://img.shields.io/badge/Interface-Console-555555)
+![Rich](https://img.shields.io/badge/CLI-Rich-ff4fa3)
+![Network](https://img.shields.io/badge/Focus-Network%20Diagnostics-2ea44f)
+![Status](https://img.shields.io/badge/Use-Authorized%20Only-orange)
 
 </div>
 
 ---
 
-## 🇵🇱 Polski
+## 🚀 About
 
-**Dreambox Scanner** to projekt w Pythonie przeznaczony do diagnostyki urządzeń Dreambox oraz pracy z listami TV. Repozytorium zawiera główny `scanner.py`, starsze warianty programu oraz plik `requirements.txt`.
+**Dreambox Scanner** is a Python console project for Dreambox-related diagnostics and TV-list tooling. It combines network/device checks, JSON configuration, application logging and a Rich-powered terminal interface.
 
-### Główne elementy
+It is intended for owners and administrators who need a compact **Dreambox scanner**, **Dreambox network diagnostic tool**, **Python receiver utility** or a helper for inspecting Dreambox-related services and list data on networks they control.
 
-- wykrywanie i sprawdzanie urządzeń/usług w sieci,
-- praca z konfiguracją JSON,
-- logowanie działania programu,
-- obsługa list i danych związanych z odbiornikami Dreambox,
-- czytelny interfejs konsolowy oparty o `rich`.
+---
 
-### Instalacja
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| 📡 Device/service checks | Inspect Dreambox-related devices and services |
+| 🧾 JSON configuration | Store and load program configuration |
+| 📜 Logging | Keep operation and diagnostic logs |
+| 📺 List tooling | Work with TV/list data used around Dreambox workflows |
+| 🎨 Rich terminal UI | Colored, structured console output |
+| 🧪 Multiple variants | Repository includes current and older script versions |
+
+---
+
+## 📦 Installation
 
 ```bash
 git clone https://github.com/Swir/Dreambox-scaner.git
@@ -32,39 +45,28 @@ pip install -r requirements.txt
 python scanner.py
 ```
 
-### ⚠️ Dozwolone użycie
+---
 
-Używaj programu wyłącznie we własnej sieci, laboratorium lub wobec urządzeń i zakresów, do których masz wyraźne uprawnienia administracyjne. Skanowanie cudzej infrastruktury bez zgody może naruszać prawo, regulaminy usług lub zasady operatorów.
+## 🔍 Discoverability
+
+`dreambox scanner` • `dreambox network tool` • `dreambox python` • `enigma2 diagnostic tool` • `receiver network scanner` • `python network diagnostics` • `dreambox list tool` • `rich cli network tool`
 
 ---
 
-## 🇬🇧 English
+## ⚠️ Authorized Use Only
 
-**Dreambox Scanner** is a Python project for Dreambox-related diagnostics and TV list tooling. The repository contains the main `scanner.py`, older program variants and a `requirements.txt` file.
-
-### Main components
-
-- discovery and diagnostics for devices/services,
-- JSON-based configuration handling,
-- application logging,
-- tools for Dreambox-related lists and data,
-- a Rich-powered console interface.
-
-### Installation
-
-```bash
-git clone https://github.com/Swir/Dreambox-scaner.git
-cd Dreambox-scaner
-pip install -r requirements.txt
-python scanner.py
-```
-
-### ⚠️ Authorized use only
-
-Use this software only on your own network, in a lab environment, or against devices and address ranges you are explicitly authorized to administer. Scanning third-party infrastructure without permission may violate law, service terms or network policies.
+Use the program only on your own network, in a lab, or against devices and address ranges you are explicitly authorized to administer. Scanning or probing third-party infrastructure without permission may violate law, provider rules or network policy.
 
 ---
 
-## 👤 Author / Autor
+## 👨‍💻 Author
 
-Created and maintained by **Swir**.
+Developed by **Swir** — [@Swir](https://github.com/Swir)
+
+<div align="center">
+
+### 📡 Practical Dreambox diagnostics from the terminal
+
+⭐ **Star the repository if it helps your setup!**
+
+</div>
