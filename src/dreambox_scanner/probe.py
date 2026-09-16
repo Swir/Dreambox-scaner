@@ -17,10 +17,10 @@ SERVICE_HINTS = {
     8080: "Kodi / HTTP",
     8888: "NBox / HTTP",
     9981: "TVHeadend / HTTP",
-    65001: "HDHomeRun discovery",
 }
 
 HTTP_PORTS = {80, 443, 8080, 8888, 9981}
+MAX_FINGERPRINT_BYTES = 4096
 
 
 @dataclass(slots=True, frozen=True)
@@ -61,6 +61,14 @@ def tcp_probe(ip: str, port: int, timeout_s: float) -> tuple[bool, float | None]
         return False, None
 
 
+def _small_response_text(response: requests.Response) -> str:
+    chunk = next(response.iter_content(chunk_size=MAX_FINGERPRINT_BYTES), b"")
+    if not chunk:
+        return ""
+    encoding = response.encoding or "utf-8"
+    return chunk[:MAX_FINGERPRINT_BYTES].decode(encoding, errors="replace")
+
+
 def http_fingerprint(
     ip: str,
     port: int,
@@ -81,24 +89,26 @@ def http_fingerprint(
         session.headers.update({"User-Agent": "DreamboxScanner/6.0 (+authorized-LAN-diagnostics)"})
         for path in paths:
             try:
-                response = session.get(
+                with session.get(
                     f"{scheme}://{ip}:{port}{path}",
                     timeout=timeout_s,
                     auth=auth,
                     verify=False,
-                    allow_redirects=True,
-                )
+                    allow_redirects=False,
+                    stream=True,
+                ) as response:
+                    last_status = response.status_code
+                    server = response.headers.get("Server", "")
+                    body_fragment = _small_response_text(response)
             except requests.RequestException:
                 continue
-            last_status = response.status_code
-            server = response.headers.get("Server", "")
-            title_fragment = response.text[:4096]
-            combined = f"{server}\n{title_fragment}"
+
+            combined = f"{server}\n{body_fragment}"
             snippets.append(combined)
             device = _identify(combined, port)
             if device != "Unknown":
                 fingerprint = server.strip() or device
-                return HttpFingerprint(device, response.status_code, fingerprint[:160])
+                return HttpFingerprint(device, last_status, fingerprint[:160])
 
     combined = "\n".join(snippets)
     return HttpFingerprint(_identify(combined, port), last_status, None)
