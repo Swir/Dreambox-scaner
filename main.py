@@ -1,10 +1,3 @@
-"""Backward-compatible launcher for Dreambox Scanner v6.
-
-The application code now lives in ``src/dreambox_scanner``. Existing users can
-keep running ``python scanner.py ...`` while new installations may use
-``python main.py ...`` or the installed ``dreambox-scanner`` command.
-"""
-
 from __future__ import annotations
 
 import sys
