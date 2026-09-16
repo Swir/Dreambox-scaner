@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
@@ -11,12 +12,14 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRe
 from rich.table import Table
 
 from . import __version__
+from .logging_utils import configure_logging
 from .output import save_results
 from .scanner import DEFAULT_PORTS, scan_targets
 from .targets import TargetError, expand_targets
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 console = Console()
+logger = logging.getLogger("dreambox_scanner.cli")
 
 
 def _parse_ports(value: str) -> tuple[int, ...]:
@@ -61,6 +64,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output", help="Save results to this path")
     parser.add_argument("--format", choices=("json", "csv"), default="json", help="Output file format")
+    parser.add_argument("--log-file", help="Optional custom log file path")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose file logging")
     parser.add_argument(
         "--authorized",
         action="store_true",
@@ -88,6 +93,7 @@ def _render_table(results) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    log_path = configure_logging(args.log_file, verbose=args.verbose)
 
     if not args.authorized:
         console.print(
@@ -105,14 +111,22 @@ def main(argv: list[str] | None = None) -> int:
     try:
         targets = expand_targets(args.targets, max_hosts=args.max_hosts)
     except TargetError as exc:
+        logger.warning("Rejected target selection: %s", exc)
         console.print(f"[red]{exc}[/red]")
         return 2
 
     password = os.getenv(args.password_env) if args.username else None
+    if args.username and not password:
+        console.print(
+            f"[yellow]Username supplied but {args.password_env} is not set; trying authentication with an empty password.[/yellow]"
+        )
+
     console.print(
         f"[bold cyan]Dreambox Scanner v{__version__}[/bold cyan] • "
         f"{len(targets)} host(s) • {len(args.ports)} port(s) • authorized LAN mode"
     )
+    if args.verbose:
+        console.print(f"[dim]Log: {log_path}[/dim]")
 
     with Progress(
         SpinnerColumn(),
@@ -144,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.output:
         path = save_results(results, Path(args.output), args.format)
+        logger.info("Saved %s result(s) to %s", len(results), path)
         console.print(f"[green]Saved {len(results)} result(s) to {path}[/green]")
 
     return 0
