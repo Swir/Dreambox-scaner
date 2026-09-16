@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
   "requests>=2.32.3,<3",
   "rich>=13.9.4,<15",
-  "Pillow>=10.4.0,<12",
+  "urllib3>=2.2,<3",
 ]
 authors = [{name = "Swir"}]
 keywords = ["dreambox", "enigma2", "network", "diagnostics", "kodi", "tvheadend"]
@@ -19,6 +19,13 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: Microsoft :: Windows",
   "Topic :: System :: Networking",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<10",
+  "Pillow>=10.4,<12",
+  "pyinstaller>=6.11,<7",
 ]
 
 [project.scripts]
