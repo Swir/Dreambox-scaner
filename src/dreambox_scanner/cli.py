@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--ports",
         type=_parse_ports,
         default=DEFAULT_PORTS,
-        help="Comma-separated ports (default: 80,443,8001,8002,8080,8888,9981,65001)",
+        help="Comma-separated TCP ports (default: 80,443,8001,8002,8080,8888,9981)",
     )
     parser.add_argument("--timeout-ms", type=int, default=750, help="Connection timeout in milliseconds")
     parser.add_argument("--workers", type=int, default=32, help="Concurrent host workers, max 128")
