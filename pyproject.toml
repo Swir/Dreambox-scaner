@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dreambox-scanner"
+version = "6.0.0"
+description = "Authorized LAN diagnostics for Dreambox, Enigma2 and related media devices"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.32.3,<3",
+  "rich>=13.9.4,<15",
+  "Pillow>=10.4.0,<12",
+]
+authors = [{name = "Swir"}]
+keywords = ["dreambox", "enigma2", "network", "diagnostics", "kodi", "tvheadend"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: Microsoft :: Windows",
+  "Topic :: System :: Networking",
+]
+
+[project.scripts]
+dreambox-scanner = "dreambox_scanner.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
