@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .models import ScanResult
 from .probe import probe_port
 
-DEFAULT_PORTS = (80, 443, 8001, 8002, 8080, 8888, 9981, 65001)
+DEFAULT_PORTS = (80, 443, 8001, 8002, 8080, 8888, 9981)
 logger = logging.getLogger("dreambox_scanner.scanner")
 
 
@@ -40,19 +40,23 @@ def scan_targets(
     if not target_list:
         return []
 
+    port_list = tuple(dict.fromkeys(int(port) for port in ports))
+    if not port_list:
+        return []
+
     worker_count = max(1, min(int(workers), 128, len(target_list)))
     results: list[ScanResult] = []
     logger.info(
         "Starting authorized scan: hosts=%s ports=%s timeout_ms=%s workers=%s",
         len(target_list),
-        tuple(int(port) for port in ports),
+        port_list,
         timeout_ms,
         worker_count,
     )
 
     with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="dreambox-scan") as pool:
         futures = {
-            pool.submit(scan_host, ip, ports, timeout_ms, username, password): ip
+            pool.submit(scan_host, ip, port_list, timeout_ms, username, password): ip
             for ip in target_list
         }
         for future in as_completed(futures):
