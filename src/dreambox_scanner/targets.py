@@ -34,6 +34,14 @@ def _validate_ip(ip: ipaddress.IPv4Address) -> ipaddress.IPv4Address:
     return ip
 
 
+def _enforce_hard_limit(host_count: int, label: str) -> None:
+    if host_count > MAX_HOSTS_HARD_LIMIT:
+        raise TargetError(
+            f"{label} expands to {host_count} hosts, above the hard safety limit of "
+            f"{MAX_HOSTS_HARD_LIMIT}. Split it into smaller authorized ranges."
+        )
+
+
 def _from_range(value: str) -> list[ipaddress.IPv4Address]:
     start_raw, end_raw = (part.strip() for part in value.split("-", 1))
     try:
@@ -43,6 +51,9 @@ def _from_range(value: str) -> list[ipaddress.IPv4Address]:
         raise TargetError(f"Invalid IPv4 range: {value}") from exc
     if int(start) > int(end):
         raise TargetError(f"Range start must not be greater than range end: {value}")
+
+    host_count = int(end) - int(start) + 1
+    _enforce_hard_limit(host_count, value)
     return [ipaddress.IPv4Address(number) for number in range(int(start), int(end) + 1)]
 
 
@@ -52,11 +63,17 @@ def _from_cidr(value: str) -> list[ipaddress.IPv4Address]:
     except (ipaddress.AddressValueError, ipaddress.NetmaskValueError) as exc:
         raise TargetError(f"Invalid IPv4 CIDR: {value}") from exc
 
-    if not all(any(host in allowed for allowed in _ALLOWED_NETWORKS) for host in (network.network_address, network.broadcast_address)):
+    if not all(
+        any(host in allowed for allowed in _ALLOWED_NETWORKS)
+        for host in (network.network_address, network.broadcast_address)
+    ):
         raise TargetError(
             f"{network} is outside the supported private/LAN scope. "
             "Use only networks you own or administer."
         )
+
+    host_count = network.num_addresses if network.prefixlen >= 31 else max(0, network.num_addresses - 2)
+    _enforce_hard_limit(host_count, str(network))
     if network.prefixlen == 32:
         return [_validate_ip(network.network_address)]
     return list(network.hosts())
