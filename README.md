@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="assets/icon.svg" width="150" alt="Dreambox Scanner icon">
+<img src="assets/icon.svg" width="160" alt="Dreambox Scanner application icon">
 
-# Dreambox Scanner v6
+# Dreambox Scanner v6.1
 
-### Authorized LAN diagnostics for Dreambox, Enigma2 and media receivers
+### Modern desktop + CLI diagnostics for Dreambox, Enigma2 and media receivers
 
 [![CI](https://github.com/Swir/Dreambox-scaner/actions/workflows/ci.yml/badge.svg)](https://github.com/Swir/Dreambox-scaner/actions/workflows/ci.yml)
 [![Windows Release](https://github.com/Swir/Dreambox-scaner/actions/workflows/release.yml/badge.svg)](https://github.com/Swir/Dreambox-scaner/actions/workflows/release.yml)
@@ -12,56 +12,108 @@
 ![Windows](https://img.shields.io/badge/Windows-EXE-0078D4?logo=windows&logoColor=white)
 ![Scope](https://img.shields.io/badge/Scope-Authorized%20LAN-22c55e)
 
-**Modular Python • Rich CLI • Windows EXE • JSON/CSV • SHA256 • by Swir**
+**Desktop GUI • CLI • M3U playlists • JSON/CSV • Windows EXE • SHA256 • by Swir**
 
 </div>
 
 ---
 
-## What changed in v6
+## Why v6.1 exists
 
-Dreambox Scanner v6 is a clean rewrite of the original single-file utility. The old country-wide public IP generator and duplicate script copies are gone. v6 is intentionally focused on devices inside private networks that you own or administer.
+The v6 rewrite greatly improved the internal architecture, safety checks, exports, fingerprinting and release process, but it also removed several useful functions from the older desktop versions. v6.1 is a regression-recovery release: it keeps the modern v6 engine while restoring the practical desktop workflow.
 
-The code now lives in `src/dreambox_scanner/`, has automated tests, bounded concurrency, typed results, structured exports, a dedicated application icon and a reproducible Windows release pipeline.
+The project now explicitly tests restored behavior so future refactors do not silently remove it again.
 
-## Features
+## Restored and improved from the classic versions
 
-- Detect open services commonly used by **Dreambox / Enigma2 / OpenWebif / Vu+ / Kodi / TVHeadend / NBox / HDHomeRun** setups.
-- Scan a single private IPv4 address, CIDR or explicit private IPv4 range.
-- Reject public Internet targets by design.
+- **Desktop GUI is back** and opens automatically when the Windows EXE is launched without command-line arguments.
+- **Start IP + optional end IP workflow** for familiar private-LAN range scans.
+- **TCP port ranges** such as `1-1024`, `8001-8002` and mixed specifications like `80,443,8001-8002,8080`.
+- **Stop button** with cooperative cancellation instead of forcing the process closed.
+- **Live progress bar** plus host, checked-port and open-port counters.
+- **Double-click result details** for IP, port, detected service/device, latency and HTTP status.
+- **M3U playlist generation** in `HITS/` for hosts with discovered open services.
+- Compatible `playlist_template.m3u` support, including the classic `xxx.xxx.xxx.xxx` placeholder plus new `{{IP}}`, `{{OPEN_PORTS}}` and `{{DISCOVERED_SERVICES}}` placeholders.
+- **Save JSON and CSV directly from the GUI**.
+- Optional HTTP username/password fields for devices you administer.
+- **Custom Dreambox Scanner icon** in this README, the Windows executable and the GUI window.
+
+## Modern v6 engine retained
+
+- Detect services commonly used by **Dreambox / Enigma2 / OpenWebif / Vu+ / Kodi / TVHeadend / NBox / HDHomeRun** setups.
+- Scan a private IPv4 address, CIDR or explicit private IPv4 range.
+- Public Internet targets are rejected by design.
 - Hard target cap of 4096 hosts and worker cap of 128.
-- Fast bounded concurrent host scanning.
+- Bounded concurrent host scanning.
 - HTTP service fingerprinting where appropriate.
-- Optional HTTP authentication without putting the password in command-line history.
-- Rich progress display and result table.
-- JSON and CSV exports.
+- Structured JSON and CSV exports.
 - Python 3.10–3.14 CI.
 - Automated Windows `DreamboxScanner.exe` + portable ZIP + SHA256 checksums.
-- Custom Dreambox Scanner v6 icon.
+- Modular `src/dreambox_scanner/` code instead of duplicate version files.
 
-## Quick start
+## Windows usage
+
+Download the latest release and run:
+
+```text
+DreamboxScanner.exe
+```
+
+Launching the EXE normally opens the desktop GUI. The same EXE still supports command-line mode when arguments are supplied:
+
+```powershell
+DreamboxScanner.exe 192.168.1.0/24 --authorized --ports 80,443,8001-8002,8080
+```
+
+## Run from source
 
 ```bash
 git clone https://github.com/Swir/Dreambox-scaner.git
 cd Dreambox-scaner
 python -m pip install -r requirements.txt
-python main.py 192.168.1.0/24 --authorized
+python main.py
 ```
 
-The compatibility launcher also works:
-
-```bash
-python scanner.py 192.168.1.0/24 --authorized
-```
-
-After installing the package:
+After installing the package, the two frontends are also available separately:
 
 ```bash
 python -m pip install -e .
+dreambox-scanner-gui
 dreambox-scanner 192.168.1.0/24 --authorized
 ```
 
-## Examples
+## GUI workflow
+
+1. Enter a private target/start IP.
+2. Optionally enter an end IP. Leave it blank when the first field already contains a CIDR or range.
+3. Enter ports or ranges, for example `80,443,8001-8002,8080`.
+4. Adjust timeout/workers if needed.
+5. Confirm that you own or administer every selected target.
+6. Start the scan. Use **Stop** at any time.
+7. Double-click a result for details, save JSON/CSV, or open the generated `HITS/` folder.
+
+For very large private-LAN scan combinations the GUI asks for an additional confirmation before continuing.
+
+## M3U playlists
+
+When **Generate M3U in HITS/** is enabled, every host with discovered open services can receive:
+
+```text
+HITS/playlist_192_168_1_25.m3u
+```
+
+On first use the application creates `playlist_template.m3u`. You may edit that template. Supported placeholders:
+
+```text
+xxx.xxx.xxx.xxx
+{{IP}}
+{{OPEN_PORTS}}
+{{DISCOVERED_SERVICES}}
+```
+
+The classic IP placeholder remains supported for compatibility with older templates.
+
+## CLI examples
 
 Scan selected devices:
 
@@ -69,19 +121,19 @@ Scan selected devices:
 dreambox-scanner 192.168.1.20 192.168.1.50 --authorized
 ```
 
-Scan a small range and export JSON:
+Scan ports 1 through 1024 on one authorized LAN device:
 
 ```bash
-dreambox-scanner 192.168.1.20-192.168.1.40 --authorized --output scan-results.json --format json
+dreambox-scanner 192.168.1.20 --authorized --ports 1-1024
 ```
 
-Choose ports and a shorter timeout:
+Scan a small IP range and export JSON:
 
 ```bash
-dreambox-scanner 10.0.0.0/24 --authorized --ports 80,443,8001,8002,8080,9981 --timeout-ms 500
+dreambox-scanner 192.168.1.20-192.168.1.40 --authorized --ports 80,443,8001-8002 --output scan-results.json --format json
 ```
 
-Use HTTP credentials for devices you administer without exposing a password in shell history:
+Use HTTP credentials without putting a password into command-line history:
 
 ```powershell
 $env:DREAMBOX_SCANNER_PASSWORD = "your-password"
@@ -90,7 +142,7 @@ dreambox-scanner 192.168.1.25 --authorized --username root
 
 ## Supported target scope
 
-v6 accepts IPv4 addresses from:
+v6.1 accepts IPv4 addresses from:
 
 - `10.0.0.0/8`
 - `172.16.0.0/12`
@@ -98,7 +150,7 @@ v6 accepts IPv4 addresses from:
 - `127.0.0.0/8`
 - `169.254.0.0/16`
 
-Public Internet targets are rejected. See [SECURITY.md](SECURITY.md) for the project safeguards.
+Public Internet targets are rejected. See [SECURITY.md](SECURITY.md) for safeguards and responsible-use guidance.
 
 ## Project layout
 
@@ -108,8 +160,12 @@ Dreambox-scaner/
 │  └─ icon.svg
 ├─ src/dreambox_scanner/
 │  ├─ cli.py
+│  ├─ gui.py
+│  ├─ logging_utils.py
 │  ├─ models.py
 │  ├─ output.py
+│  ├─ playlist.py
+│  ├─ ports.py
 │  ├─ probe.py
 │  ├─ scanner.py
 │  └─ targets.py
@@ -123,24 +179,22 @@ Dreambox-scaner/
 
 ## Windows releases
 
-Tagged/release builds run tests first, generate the Windows `.ico`, build `DreamboxScanner.exe` with PyInstaller and publish:
+Release builds run regression tests first, verify the GUI module, generate the Windows ICO, build the application with PyInstaller and publish:
 
 - `DreamboxScanner.exe`
 - `DreamboxScanner.exe.sha256`
 - `DreamboxScanner-vX.Y.Z-Windows-x64.zip`
 - `DreamboxScanner-vX.Y.Z-Windows-x64.zip.sha256`
 
-## Responsible use
-
-Run Dreambox Scanner only against devices and networks you own or are explicitly authorized to administer. v6 contains technical safeguards that prevent public IPv4 scanning, but authorization remains the user's responsibility.
-
-## Development
+## Development and regression tests
 
 ```bash
-python -m pip install -e . pytest
+python -m pip install -e ".[dev]"
 pytest
 python -m compileall -q src main.py
 ```
+
+Regression coverage includes target validation, service probing, exports, TCP port-range parsing, M3U compatibility and cooperative scan cancellation.
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
 
@@ -150,6 +204,6 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 Developed by **Swir** · [GitHub profile](https://github.com/Swir)
 
-**Clean code. Reproducible releases. Authorized network diagnostics.**
+**Classic functionality restored. Modern architecture retained.**
 
 </div>
