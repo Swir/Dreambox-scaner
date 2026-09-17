@@ -8,13 +8,17 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 from .models import ScanResult
+from .targets import is_allowed_ipv4
 
 MAX_PLAYLIST_BYTES = 2 * 1024 * 1024
 
 
 def _is_authorized_local_ip(ip: str) -> bool:
-    address = ipaddress.ip_address(ip)
-    return bool(address.is_private or address.is_loopback or address.is_link_local)
+    try:
+        address = ipaddress.IPv4Address(ip)
+    except ipaddress.AddressValueError:
+        return False
+    return is_allowed_ipv4(address)
 
 
 def _safe_name(value: str) -> str:
@@ -48,8 +52,8 @@ def _looks_like_playlist(body: bytes, content_type: str) -> bool:
     lowered_type = content_type.lower()
     return (
         stripped.startswith(b"#EXTM3U")
-        or b"audio/x-mpegurl" in lowered_type.encode()
-        or b"application/vnd.apple.mpegurl" in lowered_type.encode()
+        or "audio/x-mpegurl" in lowered_type
+        or "application/vnd.apple.mpegurl" in lowered_type
         or (b"#EXTINF" in body and b"http" in body.lower())
     )
 
