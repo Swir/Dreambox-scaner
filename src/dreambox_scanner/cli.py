@@ -14,6 +14,7 @@ from rich.table import Table
 from . import __version__
 from .logging_utils import configure_logging
 from .output import save_results
+from .ports import PortSpecError, parse_ports
 from .scanner import DEFAULT_PORTS, scan_targets
 from .targets import TargetError, expand_targets
 
@@ -23,22 +24,10 @@ logger = logging.getLogger("dreambox_scanner.cli")
 
 
 def _parse_ports(value: str) -> tuple[int, ...]:
-    ports: list[int] = []
-    for raw in value.split(","):
-        raw = raw.strip()
-        if not raw:
-            continue
-        try:
-            port = int(raw)
-        except ValueError as exc:
-            raise argparse.ArgumentTypeError(f"Invalid port: {raw}") from exc
-        if not 1 <= port <= 65535:
-            raise argparse.ArgumentTypeError(f"Port out of range: {port}")
-        if port not in ports:
-            ports.append(port)
-    if not ports:
-        raise argparse.ArgumentTypeError("At least one port is required.")
-    return tuple(ports)
+    try:
+        return parse_ports(value)
+    except PortSpecError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--ports",
         type=_parse_ports,
         default=DEFAULT_PORTS,
-        help="Comma-separated TCP ports (default: 80,443,8001,8002,8080,8888,9981)",
+        help="TCP ports/ranges, e.g. 80,443,8001-8002,8080 or 1-1024",
     )
     parser.add_argument("--timeout-ms", type=int, default=750, help="Connection timeout in milliseconds")
     parser.add_argument("--workers", type=int, default=32, help="Concurrent host workers, max 128")
