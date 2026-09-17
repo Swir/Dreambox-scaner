@@ -35,5 +35,7 @@ jobs:
           python -m pip install -e . pytest
       - name: Compile
         run: python -m compileall -q src main.py
+      - name: CLI portability smoke test
+        run: python main.py --version
       - name: Test
         run: pytest
