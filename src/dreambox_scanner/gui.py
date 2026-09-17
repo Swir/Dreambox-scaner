@@ -5,7 +5,6 @@ import queue
 import sys
 import threading
 import webbrowser
-from collections import defaultdict
 from pathlib import Path
 from tkinter import BooleanVar, StringVar, Tk, filedialog, messagebox, ttk
 
@@ -43,6 +42,7 @@ class DreamboxScannerGUI:
         self.scanned_probes = 0
         self.open_ports = 0
         self.completed_hosts = 0
+        self._expected_hosts = 0
 
         self.target_var = StringVar(value="192.168.1.1")
         self.end_ip_var = StringVar(value="192.168.1.254")
@@ -119,9 +119,9 @@ class DreamboxScannerGUI:
         self._labeled_entry(config, "HTTP username", self.username_var, 1, 4)
 
         ttk.Label(config, text="HTTP password", style="Card.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=(10, 0))
-        password = ttk.Entry(config, textvariable=self.password_var, show="•")
-        password.grid(row=2, column=1, sticky="ew", pady=(10, 0), padx=(0, 14))
-
+        ttk.Entry(config, textvariable=self.password_var, show="•").grid(
+            row=2, column=1, sticky="ew", pady=(10, 0), padx=(0, 14)
+        )
         ttk.Checkbutton(config, text="Generate M3U in HITS/ when a host has open ports", variable=self.playlist_var).grid(
             row=2, column=2, columnspan=2, sticky="w", pady=(10, 0)
         )
@@ -177,7 +177,9 @@ class DreamboxScannerGUI:
         ttk.Label(metrics, textvariable=self.status_var, style="Hint.TLabel").pack(side="right")
 
     def _labeled_entry(self, parent, label: str, variable: StringVar, row: int, column: int) -> None:
-        ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row, column=column, sticky="w", padx=(0, 8), pady=(0 if row == 0 else 10, 0))
+        ttk.Label(parent, text=label, style="Card.TLabel").grid(
+            row=row, column=column, sticky="w", padx=(0, 8), pady=(0 if row == 0 else 10, 0)
+        )
         ttk.Entry(parent, textvariable=variable).grid(
             row=row,
             column=column + 1,
@@ -224,13 +226,16 @@ class DreamboxScannerGUI:
         ):
             return
 
+        playlist_enabled = self.playlist_var.get()
+        username = self.username_var.get().strip() or None
+        password = self.password_var.get() if username else None
+
         self.results.clear()
         self.cancel_event.clear()
         self.scanned_probes = 0
         self.open_ports = 0
         self.completed_hosts = 0
         self._expected_hosts = len(targets)
-        self._expected_ports = len(ports)
         self.tree.delete(*self.tree.get_children())
         self.progress.configure(maximum=max(1, self.total_probes), value=0)
         self.hosts_var.set(f"Hosts: 0/{len(targets)}")
@@ -244,17 +249,22 @@ class DreamboxScannerGUI:
 
         self.scan_thread = threading.Thread(
             target=self._scan_worker,
-            args=(targets, ports, timeout_ms, workers),
+            args=(targets, ports, timeout_ms, workers, playlist_enabled, username, password),
             daemon=True,
             name="dreambox-gui-scan",
         )
         self.scan_thread.start()
 
-    def _scan_worker(self, targets: list[str], ports: tuple[int, ...], timeout_ms: int, workers: int) -> None:
-        playlist_enabled = self.playlist_var.get()
-        username = self.username_var.get().strip() or None
-        password = self.password_var.get() if username else None
-
+    def _scan_worker(
+        self,
+        targets: list[str],
+        ports: tuple[int, ...],
+        timeout_ms: int,
+        workers: int,
+        playlist_enabled: bool,
+        username: str | None,
+        password: str | None,
+    ) -> None:
         def probe_done(ip: str, port: int, result: ScanResult | None) -> None:
             self.events.put(("probe", ip, port, result))
 
@@ -323,8 +333,11 @@ class DreamboxScannerGUI:
                     messagebox.showerror("Scan failed", str(event[1]))
         except queue.Empty:
             pass
-        if self.root.winfo_exists():
-            self.root.after(100, self._drain_events)
+        try:
+            if self.root.winfo_exists():
+                self.root.after(100, self._drain_events)
+        except Exception:
+            pass
 
     def _finish_scan(self, cancelled: bool) -> None:
         self.start_button.configure(state="normal")
