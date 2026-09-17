@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dreambox-scanner"
-version = "6.0.0"
+version = "6.1.0"
 description = "Authorized LAN diagnostics for Dreambox, Enigma2 and related media devices"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,6 +30,7 @@ dev = [
 
 [project.scripts]
 dreambox-scanner = "dreambox_scanner.cli:main"
+dreambox-scanner-gui = "dreambox_scanner.gui:launch_gui"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

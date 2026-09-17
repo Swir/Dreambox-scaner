@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Event
 
 from .models import ScanResult
 from .probe import probe_port
@@ -17,13 +18,19 @@ def scan_host(
     timeout_ms: int = 750,
     username: str | None = None,
     password: str | None = None,
+    cancel_event: Event | None = None,
+    on_probe_done: Callable[[str, int, ScanResult | None], None] | None = None,
 ) -> list[ScanResult]:
     timeout_s = max(timeout_ms, 50) / 1000.0
     results: list[ScanResult] = []
     for port in ports:
+        if cancel_event is not None and cancel_event.is_set():
+            break
         result = probe_port(ip, int(port), timeout_s, username, password)
         if result is not None:
             results.append(result)
+        if on_probe_done is not None:
+            on_probe_done(ip, int(port), result)
     return results
 
 
@@ -35,6 +42,8 @@ def scan_targets(
     username: str | None = None,
     password: str | None = None,
     on_host_done: Callable[[str, list[ScanResult]], None] | None = None,
+    cancel_event: Event | None = None,
+    on_probe_done: Callable[[str, int, ScanResult | None], None] | None = None,
 ) -> list[ScanResult]:
     target_list = list(targets)
     if not target_list:
@@ -49,18 +58,30 @@ def scan_targets(
     logger.info(
         "Starting authorized scan: hosts=%s ports=%s timeout_ms=%s workers=%s",
         len(target_list),
-        port_list,
+        len(port_list),
         timeout_ms,
         worker_count,
     )
 
     with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="dreambox-scan") as pool:
         futures = {
-            pool.submit(scan_host, ip, port_list, timeout_ms, username, password): ip
+            pool.submit(
+                scan_host,
+                ip,
+                port_list,
+                timeout_ms,
+                username,
+                password,
+                cancel_event,
+                on_probe_done,
+            ): ip
             for ip in target_list
         }
         for future in as_completed(futures):
             ip = futures[future]
+            if cancel_event is not None and cancel_event.is_set():
+                for pending in futures:
+                    pending.cancel()
             try:
                 host_results = future.result()
             except Exception:
@@ -71,5 +92,9 @@ def scan_targets(
                 on_host_done(ip, host_results)
 
     ordered = sorted(results, key=lambda item: (tuple(int(part) for part in item.ip.split(".")), item.port))
-    logger.info("Authorized scan completed: results=%s", len(ordered))
+    logger.info(
+        "Authorized scan completed: results=%s cancelled=%s",
+        len(ordered),
+        bool(cancel_event and cancel_event.is_set()),
+    )
     return ordered
