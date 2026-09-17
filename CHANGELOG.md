@@ -2,6 +2,23 @@
 
 All notable Dreambox Scanner changes are documented here.
 
+## [6.2.0] - 2026-09-17
+
+### Restored
+- Classic plain-text scan result export alongside JSON and CSV.
+- Authorized remote M3U retrieval from discovered private/local media devices.
+- Optional HTTPS preference for receivers exposing playlist endpoints on non-standard HTTPS ports.
+
+### Hardened
+- Remote playlist retrieval refuses public Internet IP addresses even if called directly.
+- Remote playlist responses are capped at 2 MiB.
+- HTTP redirects are disabled for compatibility downloads.
+- Credentials remain runtime-only; the legacy plaintext password persistence from `config.json` was intentionally not restored.
+
+### Tested
+- Regression coverage for plain-text export.
+- Regression coverage for private/local-only playlist retrieval and redirect blocking.
+
 ## [6.1.0] - 2026-09-17
 
 ### Restored

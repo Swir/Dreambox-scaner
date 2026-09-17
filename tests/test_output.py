@@ -32,3 +32,12 @@ def test_csv_export(tmp_path):
         rows = list(csv.DictReader(handle))
     assert rows[0]["ip"] == "192.168.1.20"
     assert rows[0]["fingerprint"] == "OpenWebif"
+
+
+def test_text_export(tmp_path):
+    path = save_results(_sample(), tmp_path / "scan.txt", "text")
+    text = path.read_text(encoding="utf-8")
+    assert "IP: 192.168.1.20" in text
+    assert "Port: 80" in text
+    assert "Device: Dreambox / Enigma2" in text
+    assert "Fingerprint: OpenWebif" in text

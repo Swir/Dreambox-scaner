@@ -15,6 +15,7 @@ from . import __version__
 from .logging_utils import configure_logging
 from .output import save_results
 from .ports import PortSpecError, parse_ports
+from .remote_playlist import fetch_playlists_for_results
 from .scanner import DEFAULT_PORTS, scan_targets
 from .targets import TargetError, expand_targets
 
@@ -52,7 +53,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Environment variable containing the optional HTTP password",
     )
     parser.add_argument("--output", help="Save results to this path")
-    parser.add_argument("--format", choices=("json", "csv"), default="json", help="Output file format")
+    parser.add_argument(
+        "--format",
+        choices=("json", "csv", "text"),
+        default="json",
+        help="Output file format (classic plain-text export is supported again)",
+    )
+    parser.add_argument(
+        "--fetch-device-playlists",
+        action="store_true",
+        help="Fetch M3U playlists from discovered devices on authorized private/local targets",
+    )
+    parser.add_argument(
+        "--playlist-dir",
+        default="Device_Playlists",
+        help="Directory for playlists fetched from discovered devices",
+    )
+    parser.add_argument(
+        "--prefer-https",
+        action="store_true",
+        help="Use HTTPS for authorized HTTP playlist retrieval even on non-443 ports",
+    )
     parser.add_argument("--log-file", help="Optional custom log file path")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose file logging")
     parser.add_argument(
@@ -144,6 +165,25 @@ def main(argv: list[str] | None = None) -> int:
         _render_table(results)
     else:
         console.print("[yellow]No matching open services were found on the selected authorized targets.[/yellow]")
+
+    if args.fetch_device_playlists and results:
+        try:
+            saved = fetch_playlists_for_results(
+                results,
+                output_dir=args.playlist_dir,
+                timeout_s=max(1.0, min(args.timeout_ms / 1000.0, 15.0)),
+                username=args.username,
+                password=password,
+                prefer_https=args.prefer_https,
+            )
+        except ValueError as exc:
+            logger.warning("Playlist compatibility fetch rejected: %s", exc)
+            console.print(f"[yellow]Playlist retrieval skipped: {exc}[/yellow]")
+        else:
+            if saved:
+                console.print(f"[green]Fetched {len(saved)} remote playlist(s) into {Path(args.playlist_dir)}[/green]")
+            else:
+                console.print("[yellow]No remote device playlist was available on the discovered authorized services.[/yellow]")
 
     if args.output:
         path = save_results(results, Path(args.output), args.format)
