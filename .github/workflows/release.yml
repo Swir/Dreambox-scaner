@@ -33,13 +33,16 @@ jobs:
       - name: Test
         run: pytest
 
+      - name: GUI import smoke test
+        run: python -c "from dreambox_scanner.gui import DreamboxScannerGUI, launch_gui; print('GUI import OK')"
+
       - name: Build Windows icon
         run: python tools/build_icon.py
 
       - name: Build executable
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --name DreamboxScanner --icon assets/dreambox-scanner.ico --paths src main.py
+          pyinstaller --noconfirm --clean --onefile --name DreamboxScanner --icon assets/dreambox-scanner.ico --add-data "assets/dreambox-scanner.ico;assets" --paths src main.py
 
       - name: Smoke-test executable
         shell: pwsh
