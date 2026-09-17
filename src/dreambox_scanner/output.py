@@ -34,6 +34,26 @@ def save_results(results: list[ScanResult], destination: str | Path, output_form
             writer.writeheader()
             for item in results:
                 writer.writerow(item.to_dict())
+    elif fmt in {"text", "txt"}:
+        blocks: list[str] = []
+        for item in results:
+            latency = "-" if item.latency_ms is None else f"{item.latency_ms:.2f} ms"
+            http_status = "-" if item.http_status is None else str(item.http_status)
+            fingerprint = item.fingerprint or "-"
+            blocks.append(
+                "\n".join(
+                    (
+                        f"IP: {item.ip}",
+                        f"Port: {item.port}",
+                        f"Service: {item.service}",
+                        f"Device: {item.device}",
+                        f"Latency: {latency}",
+                        f"HTTP: {http_status}",
+                        f"Fingerprint: {fingerprint}",
+                    )
+                )
+            )
+        path.write_text("\n\n".join(blocks) + ("\n" if blocks else ""), encoding="utf-8")
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
 
